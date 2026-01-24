@@ -1,17 +1,18 @@
 package main
 
 import (
-	"net/http"
+	"poke-battles/internal/config"
+	"poke-battles/internal/routes"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
-	r := gin.Default()
+	server := gin.Default()
 
 	// CORS middleware
-	r.Use(cors.New(cors.Config{
+	server.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:5173"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
 		AllowHeaders:     []string{"Origin", "Content-Type"},
@@ -19,12 +20,10 @@ func main() {
 	}))
 
 	// Routes
-	r.GET("/api/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"status":  "ok",
-			"message": "Backend is running",
-		})
-	})
+	routes.RegisterRoutes(server)
 
-	r.Run(":8080")
+	// Run server
+	if err := server.Run(config.ServerPORT); err != nil {
+		panic(err)
+	}
 }
