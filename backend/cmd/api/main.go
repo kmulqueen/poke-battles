@@ -6,6 +6,7 @@ import (
 	"poke-battles/internal/middleware"
 	"poke-battles/internal/routes"
 	"poke-battles/internal/services"
+	"poke-battles/internal/websocket"
 
 	"github.com/gin-gonic/gin"
 )
@@ -19,8 +20,15 @@ func main() {
 	// Services
 	lobbyService := services.NewLobbyService()
 
+	// WebSocket Hub
+	hub := websocket.NewHub()
+	go hub.Run()
+
+	// WebSocket Handler
+	wsHandler := websocket.NewHandler(hub, lobbyService)
+
 	// Routes
-	routes.RegisterRoutes(server, lobbyService)
+	routes.RegisterRoutes(server, lobbyService, wsHandler)
 
 	// Run server
 	port := os.Getenv("PORT")

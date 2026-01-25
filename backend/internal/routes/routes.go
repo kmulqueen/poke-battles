@@ -3,6 +3,7 @@ package routes
 import (
 	"poke-battles/internal/controllers"
 	"poke-battles/internal/services"
+	"poke-battles/internal/websocket"
 
 	"github.com/gin-gonic/gin"
 )
@@ -10,7 +11,7 @@ import (
 const v1BasePath = "/api/v1"
 
 // RegisterRoutes registers API routes with injected dependencies
-func RegisterRoutes(server *gin.Engine, lobbyService services.LobbyService) {
+func RegisterRoutes(server *gin.Engine, lobbyService services.LobbyService, wsHandler *websocket.Handler) {
 	v1 := server.Group(v1BasePath)
 
 	// Health check
@@ -26,4 +27,8 @@ func RegisterRoutes(server *gin.Engine, lobbyService services.LobbyService) {
 	lobbiesRoute.POST("/:code/join", lobby.Join)
 	lobbiesRoute.POST("/:code/leave", lobby.Leave)
 	lobbiesRoute.POST("/:code/start", lobby.Start)
+
+	// WebSocket
+	wsRoute := v1.Group("/ws")
+	wsRoute.GET("/game/:code", wsHandler.HandleConnection)
 }
