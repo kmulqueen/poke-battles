@@ -39,6 +39,7 @@ const (
 	// Lobby Lifecycle
 	TypeLobbyUpdated  MessageType = "lobby_updated"
 	TypeGameStarting  MessageType = "game_starting"
+	TypeGameStarted   MessageType = "game_started"
 
 	// Battle Lifecycle
 	TypeGameState          MessageType = "game_state"
@@ -251,6 +252,11 @@ type StateChangedEventData struct {
 type GameStartingPayload struct {
 	StartsAt     int64 `json:"starts_at"`
 	CountdownSec int   `json:"countdown_sec"`
+}
+
+// GameStartedPayload notifies that the game has started
+type GameStartedPayload struct {
+	GameID string `json:"game_id,omitempty"`
 }
 
 // CreatureInfo represents a creature in battle
