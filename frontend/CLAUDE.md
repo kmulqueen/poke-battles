@@ -77,6 +77,7 @@ frontend/src/
 ├── api/
 │ ├── http.ts
 │ └── ws.ts
+├── routes/
 ├── store/
 └── types/
 

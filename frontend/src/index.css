@@ -1,68 +1,72 @@
-:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+@import "tailwindcss";
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+@theme {
+  /* Primary - Pokemon Red inspired */
+  --color-primary-50: oklch(0.97 0.02 25);
+  --color-primary-100: oklch(0.93 0.04 25);
+  --color-primary-200: oklch(0.85 0.08 25);
+  --color-primary-300: oklch(0.75 0.14 25);
+  --color-primary-400: oklch(0.65 0.18 25);
+  --color-primary-500: oklch(0.55 0.22 25);
+  --color-primary-600: oklch(0.48 0.20 25);
+  --color-primary-700: oklch(0.40 0.18 25);
+  --color-primary-800: oklch(0.33 0.14 25);
+  --color-primary-900: oklch(0.25 0.10 25);
+  --color-primary-950: oklch(0.18 0.08 25);
 
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  /* Secondary - Pokemon Blue inspired */
+  --color-secondary-50: oklch(0.97 0.02 250);
+  --color-secondary-100: oklch(0.93 0.04 250);
+  --color-secondary-200: oklch(0.85 0.08 250);
+  --color-secondary-300: oklch(0.75 0.12 250);
+  --color-secondary-400: oklch(0.62 0.16 250);
+  --color-secondary-500: oklch(0.52 0.18 250);
+  --color-secondary-600: oklch(0.45 0.16 250);
+  --color-secondary-700: oklch(0.38 0.14 250);
+  --color-secondary-800: oklch(0.30 0.10 250);
+  --color-secondary-900: oklch(0.22 0.08 250);
+  --color-secondary-950: oklch(0.15 0.06 250);
+
+  /* Accent - Pokemon Yellow */
+  --color-accent-400: oklch(0.88 0.18 85);
+  --color-accent-500: oklch(0.82 0.20 85);
+  --color-accent-600: oklch(0.72 0.18 85);
+
+  /* Neutral - Slate gray tones */
+  --color-neutral-50: oklch(0.98 0.005 260);
+  --color-neutral-100: oklch(0.96 0.008 260);
+  --color-neutral-200: oklch(0.91 0.010 260);
+  --color-neutral-300: oklch(0.85 0.012 260);
+  --color-neutral-400: oklch(0.65 0.015 260);
+  --color-neutral-500: oklch(0.55 0.015 260);
+  --color-neutral-600: oklch(0.45 0.015 260);
+  --color-neutral-700: oklch(0.35 0.012 260);
+  --color-neutral-800: oklch(0.25 0.010 260);
+  --color-neutral-900: oklch(0.18 0.008 260);
+  --color-neutral-950: oklch(0.12 0.006 260);
+
+  /* Surface */
+  --color-surface: oklch(1 0 0);
+
+  /* Typography */
+  --font-family-display: "Fredoka", system-ui, sans-serif;
+  --font-family-body: "Inter", system-ui, sans-serif;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
-
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
-}
-
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
+@layer base {
+  html {
+    font-family: var(--font-family-body);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
-  a:hover {
-    color: #747bff;
+
+  body {
+    background-color: var(--color-neutral-100);
+    color: var(--color-neutral-900);
+    min-height: 100dvh;
   }
-  button {
-    background-color: #f9f9f9;
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-family-display);
   }
 }
