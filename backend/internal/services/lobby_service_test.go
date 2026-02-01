@@ -3,6 +3,7 @@ package services
 import (
 	"errors"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"poke-battles/internal/game"
@@ -355,6 +356,7 @@ func TestConcurrent_CreateLobbies(t *testing.T) {
 
 	var wg sync.WaitGroup
 	lobbyCodes := make(chan string, 100)
+	var errorCount int64
 
 	for i := 0; i < 100; i++ {
 		wg.Add(1)
@@ -362,7 +364,7 @@ func TestConcurrent_CreateLobbies(t *testing.T) {
 			defer wg.Done()
 			lobby, err := svc.CreateLobby("host-"+string(rune(id)), "Host")
 			if err != nil {
-				t.Errorf("create failed: %v", err)
+				atomic.AddInt64(&errorCount, 1)
 				return
 			}
 			lobbyCodes <- lobby.Code
@@ -370,6 +372,10 @@ func TestConcurrent_CreateLobbies(t *testing.T) {
 	}
 	wg.Wait()
 	close(lobbyCodes)
+
+	if errorCount > 0 {
+		t.Errorf("create failed for %d lobbies", errorCount)
+	}
 
 	// Verify all codes are unique
 	seen := make(map[string]bool)
@@ -445,5 +451,30 @@ func TestConcurrent_GetAndModify(t *testing.T) {
 	}
 
 	wg.Wait()
-	// No race conditions should occur
+
+	// Verify lobby is in consistent state after concurrent access
+	finalLobby, err := svc.GetLobby(code)
+	if err != nil {
+		t.Fatalf("lobby should still exist: %v", err)
+	}
+
+	// Host should always exist
+	if !finalLobby.HasPlayer("host-1") {
+		t.Error("host should always be present")
+	}
+
+	// Player count should be 1 or 2
+	count := finalLobby.PlayerCount()
+	if count < 1 || count > 2 {
+		t.Errorf("expected player count 1 or 2, got %d", count)
+	}
+
+	// State should match player count
+	state := finalLobby.GetState()
+	if count == 1 && state != game.LobbyStateWaiting {
+		t.Errorf("expected state Waiting with 1 player, got %v", state)
+	}
+	if count == 2 && state != game.LobbyStateReady {
+		t.Errorf("expected state Ready with 2 players, got %v", state)
+	}
 }

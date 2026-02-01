@@ -247,6 +247,13 @@ func (c *Connection) SendEnvelope(env *Envelope) error {
 
 // SendRaw sends raw bytes to the client
 func (c *Connection) SendRaw(data []byte) error {
+	c.mu.RLock()
+	if c.state == ConnectionStateClosing {
+		c.mu.RUnlock()
+		return ErrConnectionClosing
+	}
+	c.mu.RUnlock()
+
 	select {
 	case c.send <- data:
 		return nil
@@ -289,7 +296,9 @@ func (c *Connection) Close() {
 	c.mu.Unlock()
 
 	close(c.send)
-	c.conn.Close()
+	if c.conn != nil {
+		c.conn.Close()
+	}
 }
 
 // WritePump pumps messages from the hub to the websocket connection.
@@ -374,6 +383,15 @@ type SendBufferFullError struct{}
 
 func (e *SendBufferFullError) Error() string {
 	return "send buffer full"
+}
+
+// ErrConnectionClosing is returned when trying to send on a closing connection
+var ErrConnectionClosing = &ConnectionClosingError{}
+
+type ConnectionClosingError struct{}
+
+func (e *ConnectionClosingError) Error() string {
+	return "connection closing"
 }
 
 // generateReconnectToken generates a secure random reconnect token

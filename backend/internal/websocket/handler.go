@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"sync"
 	"time"
 
 	"poke-battles/internal/game"
@@ -27,19 +26,18 @@ var upgrader = websocket.Upgrader{
 type Handler struct {
 	hub          *Hub
 	lobbyService services.LobbyService
-
-	// Ephemeral ready state - not persisted to domain
-	readyMu    sync.RWMutex
-	readyState map[string]map[string]bool // lobbyCode -> playerID -> ready
+	readyTracker *game.ReadyTracker
 }
 
 // NewHandler creates a new WebSocket handler
 func NewHandler(hub *Hub, lobbyService services.LobbyService) *Handler {
-	return &Handler{
+	h := &Handler{
 		hub:          hub,
 		lobbyService: lobbyService,
-		readyState:   make(map[string]map[string]bool),
+		readyTracker: game.NewReadyTracker(),
 	}
+	hub.SetOnDisconnect(h.HandlePlayerDisconnect)
+	return h
 }
 
 // HandleConnection handles a new WebSocket connection
@@ -234,7 +232,7 @@ func (h *Handler) handleSetReady(conn *Connection, env *Envelope) {
 	playerID := conn.PlayerID()
 
 	// Track ready state
-	h.setPlayerReady(lobbyCode, playerID, payload.Ready)
+	h.readyTracker.SetReady(lobbyCode, playerID, payload.Ready)
 
 	lobby, err := h.lobbyService.GetLobby(lobbyCode)
 	if err != nil {
@@ -297,7 +295,7 @@ func (h *Handler) handleLeaveGame(conn *Connection, env *Envelope) {
 	playerID := conn.PlayerID()
 
 	// Clean up ready state for this player
-	h.clearPlayerReadyState(lobbyCode, playerID)
+	h.readyTracker.ClearPlayer(lobbyCode, playerID)
 
 	// Remove player from lobby
 	err := h.lobbyService.LeaveLobby(lobbyCode, playerID)
@@ -355,7 +353,7 @@ func (h *Handler) buildLobbyInfo(lobby *game.Lobby) LobbyInfo {
 	playerInfos := make([]LobbyPlayerInfo, len(players))
 	for i, p := range players {
 		// Player is ready only if they have set ready AND are currently connected
-		isReady := h.isPlayerReady(lobby.Code, p.ID) && h.hub.IsPlayerConnected(p.ID)
+		isReady := h.readyTracker.IsReady(lobby.Code, p.ID) && h.hub.IsPlayerConnected(p.ID)
 		playerInfos[i] = LobbyPlayerInfo{
 			ID:       p.ID,
 			Username: p.Username,
@@ -412,47 +410,14 @@ func (h *Handler) BroadcastGameStarting(lobbyCode string, countdownSec int) {
 	h.hub.BroadcastToLobby(lobbyCode, TypeGameStarting, payload)
 }
 
-// setPlayerReady sets a player's ready state
-func (h *Handler) setPlayerReady(lobbyCode, playerID string, ready bool) {
-	h.readyMu.Lock()
-	defer h.readyMu.Unlock()
-
-	if _, ok := h.readyState[lobbyCode]; !ok {
-		h.readyState[lobbyCode] = make(map[string]bool)
-	}
-	h.readyState[lobbyCode][playerID] = ready
-}
-
-// isPlayerReady checks if a player has set ready
+// isPlayerReady checks if a player has set ready (used by tests)
 func (h *Handler) isPlayerReady(lobbyCode, playerID string) bool {
-	h.readyMu.RLock()
-	defer h.readyMu.RUnlock()
-
-	if lobbyReady, ok := h.readyState[lobbyCode]; ok {
-		return lobbyReady[playerID]
-	}
-	return false
+	return h.readyTracker.IsReady(lobbyCode, playerID)
 }
 
-// clearPlayerReadyState removes a player's ready state (used when player leaves)
-func (h *Handler) clearPlayerReadyState(lobbyCode, playerID string) {
-	h.readyMu.Lock()
-	defer h.readyMu.Unlock()
-
-	if lobbyReady, ok := h.readyState[lobbyCode]; ok {
-		delete(lobbyReady, playerID)
-		if len(lobbyReady) == 0 {
-			delete(h.readyState, lobbyCode)
-		}
-	}
-}
-
-// clearLobbyReadyState removes all ready state for a lobby (used when game starts)
-func (h *Handler) clearLobbyReadyState(lobbyCode string) {
-	h.readyMu.Lock()
-	defer h.readyMu.Unlock()
-
-	delete(h.readyState, lobbyCode)
+// HandlePlayerDisconnect handles cleanup when a player disconnects unexpectedly
+func (h *Handler) HandlePlayerDisconnect(playerID, lobbyCode string) {
+	h.readyTracker.ClearPlayer(lobbyCode, playerID)
 }
 
 // checkAndStartGame checks if conditions are met to start the game
@@ -474,25 +439,22 @@ func (h *Handler) checkAndStartGame(lobbyCode string) {
 	}
 
 	// Check both players ready AND connected
-	h.readyMu.RLock()
-	lobbyReady := h.readyState[lobbyCode]
-	allReady := true
-	for _, p := range players {
-		if !lobbyReady[p.ID] || !h.hub.IsPlayerConnected(p.ID) {
-			allReady = false
-			break
+	playerIDs := make([]string, len(players))
+	for i, p := range players {
+		playerIDs[i] = p.ID
+		if !h.hub.IsPlayerConnected(p.ID) {
+			return
 		}
 	}
-	h.readyMu.RUnlock()
 
-	if !allReady {
+	if !h.readyTracker.AllReady(lobbyCode, playerIDs) {
 		return
 	}
 
 	// Start game sequence
 	h.BroadcastGameStarting(lobbyCode, 0) // No countdown, immediate
 	h.broadcastGameStarted(lobbyCode)
-	h.clearLobbyReadyState(lobbyCode)
+	h.readyTracker.ClearLobby(lobbyCode)
 }
 
 // broadcastGameStarted broadcasts that the game has started

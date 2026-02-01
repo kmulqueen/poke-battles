@@ -20,6 +20,12 @@ type Hub struct {
 	// Channels for connection lifecycle
 	register   chan *Connection
 	unregister chan *Connection
+
+	// Stop channel for graceful shutdown
+	stop chan struct{}
+
+	// Callback invoked when an authenticated player disconnects
+	onDisconnect func(playerID, lobbyCode string)
 }
 
 // NewHub creates a new Hub
@@ -30,19 +36,34 @@ func NewHub() *Hub {
 		players:     make(map[string]*Connection),
 		register:    make(chan *Connection),
 		unregister:  make(chan *Connection),
+		stop:        make(chan struct{}),
 	}
+}
+
+// SetOnDisconnect sets the callback invoked when an authenticated player disconnects
+func (h *Hub) SetOnDisconnect(callback func(playerID, lobbyCode string)) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.onDisconnect = callback
 }
 
 // Run starts the hub's main loop
 func (h *Hub) Run() {
 	for {
 		select {
+		case <-h.stop:
+			return
 		case conn := <-h.register:
 			h.handleRegister(conn)
 		case conn := <-h.unregister:
 			h.handleUnregister(conn)
 		}
 	}
+}
+
+// Stop gracefully shuts down the hub's main loop
+func (h *Hub) Stop() {
+	close(h.stop)
 }
 
 // Register adds a connection to the hub
@@ -63,9 +84,9 @@ func (h *Hub) handleRegister(conn *Connection) {
 
 func (h *Hub) handleUnregister(conn *Connection) {
 	h.mu.Lock()
-	defer h.mu.Unlock()
 
 	if _, ok := h.connections[conn]; !ok {
+		h.mu.Unlock()
 		return
 	}
 
@@ -88,6 +109,15 @@ func (h *Hub) handleUnregister(conn *Connection) {
 		if h.players[playerID] == conn {
 			delete(h.players, playerID)
 		}
+	}
+
+	// Capture callback before releasing lock
+	callback := h.onDisconnect
+	h.mu.Unlock()
+
+	// Invoke callback outside lock to prevent deadlock
+	if callback != nil && playerID != "" && lobbyCode != "" {
+		callback(playerID, lobbyCode)
 	}
 
 	conn.Close()

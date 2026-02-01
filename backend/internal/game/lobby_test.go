@@ -2,6 +2,7 @@ package game
 
 import (
 	"sync"
+	"sync/atomic"
 	"testing"
 )
 
@@ -350,9 +351,19 @@ func TestAddPlayer_EmptyStrings(t *testing.T) {
 	lobby := NewLobby("ABC123", "host-1", "Host")
 
 	// Empty ID but has username - currently allowed by implementation
+	// Document current behavior: empty player IDs are allowed
 	err := lobby.AddPlayer("", "EmptyID")
 	if err != nil {
-		t.Logf("Adding player with empty ID returned: %v", err)
+		// If implementation changes to reject empty IDs, this documents expected behavior
+		t.Logf("Adding player with empty ID returned: %v (implementation may have changed)", err)
+	} else {
+		// Verify player was actually added
+		if !lobby.HasPlayer("") {
+			t.Error("expected player with empty ID to be in lobby after successful AddPlayer")
+		}
+		if lobby.PlayerCount() != 2 {
+			t.Errorf("expected 2 players after adding player with empty ID, got %d", lobby.PlayerCount())
+		}
 	}
 }
 
@@ -430,17 +441,22 @@ func TestGetPlayers_ThreadSafe(t *testing.T) {
 	lobby := NewLobby("ABC123", "host-1", "Host")
 
 	var wg sync.WaitGroup
+	var errorCount int64
 	for i := 0; i < 100; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			players := lobby.GetPlayers()
 			if len(players) < 1 {
-				t.Error("expected at least 1 player")
+				atomic.AddInt64(&errorCount, 1)
 			}
 		}()
 	}
 	wg.Wait()
+
+	if errorCount > 0 {
+		t.Errorf("expected at least 1 player in all reads, but %d reads failed", errorCount)
+	}
 }
 
 func TestConcurrent_MultipleJoins(t *testing.T) {
@@ -500,6 +516,23 @@ func TestConcurrent_JoinAndLeave(t *testing.T) {
 	count := lobby.PlayerCount()
 	if count < 1 || count > 2 {
 		t.Errorf("expected player count 1 or 2, got %d", count)
+	}
+
+	// Verify state consistency
+	state := lobby.GetState()
+	if count == 1 && state != LobbyStateWaiting {
+		t.Errorf("expected state Waiting with 1 player, got %v", state)
+	}
+	if count == 2 && state != LobbyStateReady {
+		t.Errorf("expected state Ready with 2 players, got %v", state)
+	}
+
+	// Host should always still exist
+	if !lobby.HasPlayer("host-1") {
+		t.Error("host should always be present")
+	}
+	if !lobby.IsHost("host-1") {
+		t.Error("host-1 should still be the host")
 	}
 }
 

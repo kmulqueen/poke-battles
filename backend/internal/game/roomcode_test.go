@@ -87,7 +87,7 @@ func TestGenerateRoomCode_Distribution(t *testing.T) {
 
 	for char, count := range charCount {
 		if count < minExpected || count > maxExpected {
-			t.Logf("character %q appeared %d times (expected ~%.0f)", char, count, expectedPerChar)
+			t.Errorf("character %q appeared %d times (expected between %d and %d, avg ~%.0f)", char, count, minExpected, maxExpected, expectedPerChar)
 		}
 	}
 }
