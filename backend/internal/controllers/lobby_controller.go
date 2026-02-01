@@ -45,6 +45,8 @@ type LobbyResponse struct {
 	MaxPlayers int              `json:"max_players"`
 }
 
+type LobbyListResponse []LobbyResponse
+
 // LobbyController handles HTTP requests for lobby operations
 type LobbyController struct {
 	lobbyService services.LobbyService
@@ -109,6 +111,22 @@ func (c *LobbyController) Get(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, toLobbyResponse(lobby))
+}
+
+// List handles GET /api/v1/lobbies
+func (c *LobbyController) List(ctx *gin.Context) {
+	lobbies, err := c.lobbyService.ListLobbies()
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": errMsgGetLobbies})
+		return
+	}
+
+	response := make(LobbyListResponse, len(lobbies))
+	for i, lobby := range lobbies {
+		response[i] = toLobbyResponse(lobby)
+	}
+
+	ctx.JSON(http.StatusOK, response)
 }
 
 // Join handles POST /api/v1/lobbies/:code/join

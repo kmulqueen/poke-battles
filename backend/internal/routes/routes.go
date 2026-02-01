@@ -23,6 +23,7 @@ func RegisterRoutes(server *gin.Engine, lobbyService services.LobbyService, wsHa
 	lobbiesRoute := v1.Group("/lobbies")
 	lobby := controllers.NewLobbyController(lobbyService)
 	lobbiesRoute.POST("", lobby.Create)
+	lobbiesRoute.GET("", lobby.List)
 	lobbiesRoute.GET("/:code", lobby.Get)
 	lobbiesRoute.POST("/:code/join", lobby.Join)
 	lobbiesRoute.POST("/:code/leave", lobby.Leave)

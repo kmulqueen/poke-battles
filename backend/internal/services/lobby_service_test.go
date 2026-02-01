@@ -124,6 +124,60 @@ func TestGetLobby_Success(t *testing.T) {
 	}
 }
 
+func TestListLobbies_Success(t *testing.T) {
+	svc := NewLobbyService()
+
+	// Create multiple lobbies
+	lobby1, _ := svc.CreateLobby("host-1", "Host1")
+	lobby2, _ := svc.CreateLobby("host-2", "Host2")
+	lobby3, _ := svc.CreateLobby("host-3", "Host3")
+
+	lobbies, err := svc.ListLobbies()
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if len(lobbies) != 3 {
+		t.Errorf("expected 3 lobbies, got %d", len(lobbies))
+	}
+
+	// Helper to check if a lobby code exists in the slice
+	containsCode := func(lobbies []*game.Lobby, code string) bool {
+		for _, l := range lobbies {
+			if l.Code == code {
+				return true
+			}
+		}
+		return false
+	}
+
+	// Verify all created lobbies are in the result
+	if !containsCode(lobbies, lobby1.Code) {
+		t.Errorf("expected lobby %q in results", lobby1.Code)
+	}
+	if !containsCode(lobbies, lobby2.Code) {
+		t.Errorf("expected lobby %q in results", lobby2.Code)
+	}
+	if !containsCode(lobbies, lobby3.Code) {
+		t.Errorf("expected lobby %q in results", lobby3.Code)
+	}
+}
+
+func TestListLobbies_Empty(t *testing.T) {
+	svc := NewLobbyService()
+
+	// Expected behavior: should return empty slice, not error
+	lobbies, err := svc.ListLobbies()
+
+	if err != nil {
+		t.Errorf("expected no error for empty lobby list, got %v", err)
+	}
+
+	if len(lobbies) != 0 {
+		t.Errorf("expected empty slice, got %d lobbies", len(lobbies))
+	}
+}
+
 func TestStartGame_Success(t *testing.T) {
 	svc := NewLobbyService()
 

@@ -3,6 +3,7 @@ package controllers
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -24,6 +25,7 @@ func setupTestRouter() (*gin.Engine, *LobbyController) {
 	api := router.Group("/api/v1")
 	{
 		api.POST("/lobbies", ctrl.Create)
+		api.GET("/lobbies", ctrl.List)
 		api.GET("/lobbies/:code", ctrl.Get)
 		api.POST("/lobbies/:code/join", ctrl.Join)
 		api.POST("/lobbies/:code/leave", ctrl.Leave)
@@ -171,6 +173,146 @@ func TestGet_NotFound(t *testing.T) {
 
 	if resp["error"] != errMsgLobbyNotFound {
 		t.Errorf("expected error %q, got %q", errMsgLobbyNotFound, resp["error"])
+	}
+}
+
+// ========================================
+// List Lobbies Tests
+// ========================================
+
+func TestList_Success(t *testing.T) {
+	router, _ := setupTestRouter()
+
+	// Create a lobby first
+	createBody := `{"player_id": "host-1", "username": "Host"}`
+	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/lobbies", bytes.NewBufferString(createBody))
+	createReq.Header.Set("Content-Type", "application/json")
+	createW := httptest.NewRecorder()
+	router.ServeHTTP(createW, createReq)
+
+	var createResp LobbyResponse
+	json.Unmarshal(createW.Body.Bytes(), &createResp)
+
+	// List all lobbies
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/lobbies", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, w.Code)
+	}
+
+	var resp LobbyListResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to parse response as array: %v", err)
+	}
+
+	if len(resp) != 1 {
+		t.Errorf("expected 1 lobby, got %d", len(resp))
+	}
+
+	lobby := resp[0]
+	if lobby.Code != createResp.Code {
+		t.Errorf("expected code %q, got %q", createResp.Code, lobby.Code)
+	}
+	if lobby.State != "waiting" {
+		t.Errorf("expected state 'waiting', got %q", lobby.State)
+	}
+	if len(lobby.Players) != 1 {
+		t.Errorf("expected 1 player, got %d", len(lobby.Players))
+	}
+	if lobby.HostID != "host-1" {
+		t.Errorf("expected host_id 'host-1', got %q", lobby.HostID)
+	}
+	if lobby.MaxPlayers != 2 {
+		t.Errorf("expected max_players 2, got %d", lobby.MaxPlayers)
+	}
+}
+
+func TestList_NoLobbies(t *testing.T) {
+	router, _ := setupTestRouter()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/lobbies", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	// Expected behavior: return 200 with empty array
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d (empty list should return 200 with empty array, not 404)", http.StatusOK, w.Code)
+	}
+
+	var resp LobbyListResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to parse response as array: %v", err)
+	}
+
+	if len(resp) != 0 {
+		t.Errorf("expected empty array, got %d lobbies", len(resp))
+	}
+}
+
+func TestList_MultipleLobbies(t *testing.T) {
+	router, _ := setupTestRouter()
+
+	// Create three lobbies
+	lobbyCodes := make([]string, 3)
+	for i := 0; i < 3; i++ {
+		createBody := fmt.Sprintf(`{"player_id": "host-%d", "username": "Host%d"}`, i+1, i+1)
+		createReq := httptest.NewRequest(http.MethodPost, "/api/v1/lobbies", bytes.NewBufferString(createBody))
+		createReq.Header.Set("Content-Type", "application/json")
+		createW := httptest.NewRecorder()
+		router.ServeHTTP(createW, createReq)
+
+		var createResp LobbyResponse
+		json.Unmarshal(createW.Body.Bytes(), &createResp)
+		lobbyCodes[i] = createResp.Code
+	}
+
+	// List all lobbies
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/lobbies", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, w.Code)
+	}
+
+	var resp LobbyListResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to parse response as array: %v", err)
+	}
+
+	if len(resp) != 3 {
+		t.Errorf("expected 3 lobbies, got %d", len(resp))
+	}
+
+	// Verify all created lobbies are in the response
+	returnedCodes := make(map[string]bool)
+	for _, lobby := range resp {
+		returnedCodes[lobby.Code] = true
+
+		// Verify response structure
+		if lobby.State == "" {
+			t.Error("lobby state should not be empty")
+		}
+		if len(lobby.Players) == 0 {
+			t.Error("lobby should have at least one player")
+		}
+		if lobby.HostID == "" {
+			t.Error("lobby host_id should not be empty")
+		}
+		if lobby.MaxPlayers != 2 {
+			t.Errorf("expected max_players 2, got %d", lobby.MaxPlayers)
+		}
+	}
+
+	for _, code := range lobbyCodes {
+		if !returnedCodes[code] {
+			t.Errorf("expected lobby %q in response, but it was missing", code)
+		}
 	}
 }
 

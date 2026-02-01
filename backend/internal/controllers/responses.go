@@ -5,6 +5,7 @@ const (
 	errMsgCreateLobby          = "failed to create lobby"
 	errMsgLobbyNotFound        = "lobby not found"
 	errMsgGetLobby             = "failed to get lobby"
+	errMsgGetLobbies           = "failed to get lobbies"
 	errMsgJoinLobby            = "failed to join lobby"
 	errMsgLobbyFull            = "lobby is full"
 	errMsgLeaveLobby           = "failed to leave lobby"

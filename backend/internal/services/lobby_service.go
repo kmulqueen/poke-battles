@@ -21,6 +21,7 @@ type LobbyService interface {
 	LeaveLobby(code, playerID string) error
 	GetLobby(code string) (*game.Lobby, error)
 	StartGame(code, playerID string) error
+	ListLobbies() ([]*game.Lobby, error)
 }
 
 // lobbyService implements LobbyService with in-memory storage
@@ -106,6 +107,18 @@ func (s *lobbyService) GetLobby(code string) (*game.Lobby, error) {
 	}
 
 	return lobby, nil
+}
+
+// ListLobbies retrieves a list of all lobbies
+func (s *lobbyService) ListLobbies() ([]*game.Lobby, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	lobbies := make([]*game.Lobby, 0, len(s.lobbies))
+	for _, lobby := range s.lobbies {
+		lobbies = append(lobbies, lobby)
+	}
+	return lobbies, nil
 }
 
 // StartGame starts the game for a lobby (host only)
