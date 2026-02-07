@@ -10,33 +10,63 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as LobbyIndexRouteImport } from './routes/lobby/index'
+import { Route as LobbyCreateRouteImport } from './routes/lobby/create'
+import { Route as LobbyCodeJoinRouteImport } from './routes/lobby/$code.join'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LobbyIndexRoute = LobbyIndexRouteImport.update({
+  id: '/lobby/',
+  path: '/lobby/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LobbyCreateRoute = LobbyCreateRouteImport.update({
+  id: '/lobby/create',
+  path: '/lobby/create',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LobbyCodeJoinRoute = LobbyCodeJoinRouteImport.update({
+  id: '/lobby/$code/join',
+  path: '/lobby/$code/join',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/lobby/create': typeof LobbyCreateRoute
+  '/lobby/': typeof LobbyIndexRoute
+  '/lobby/$code/join': typeof LobbyCodeJoinRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/lobby/create': typeof LobbyCreateRoute
+  '/lobby': typeof LobbyIndexRoute
+  '/lobby/$code/join': typeof LobbyCodeJoinRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/lobby/create': typeof LobbyCreateRoute
+  '/lobby/': typeof LobbyIndexRoute
+  '/lobby/$code/join': typeof LobbyCodeJoinRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/lobby/create' | '/lobby/' | '/lobby/$code/join'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/lobby/create' | '/lobby' | '/lobby/$code/join'
+  id: '__root__' | '/' | '/lobby/create' | '/lobby/' | '/lobby/$code/join'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  LobbyCreateRoute: typeof LobbyCreateRoute
+  LobbyIndexRoute: typeof LobbyIndexRoute
+  LobbyCodeJoinRoute: typeof LobbyCodeJoinRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +78,35 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/lobby/': {
+      id: '/lobby/'
+      path: '/lobby'
+      fullPath: '/lobby/'
+      preLoaderRoute: typeof LobbyIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lobby/create': {
+      id: '/lobby/create'
+      path: '/lobby/create'
+      fullPath: '/lobby/create'
+      preLoaderRoute: typeof LobbyCreateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lobby/$code/join': {
+      id: '/lobby/$code/join'
+      path: '/lobby/$code/join'
+      fullPath: '/lobby/$code/join'
+      preLoaderRoute: typeof LobbyCodeJoinRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  LobbyCreateRoute: LobbyCreateRoute,
+  LobbyIndexRoute: LobbyIndexRoute,
+  LobbyCodeJoinRoute: LobbyCodeJoinRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
